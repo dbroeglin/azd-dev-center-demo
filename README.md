@@ -73,3 +73,38 @@ For `appservice`, the following host configuration options are often modified:
 - Exposed port from the running container (if running a web service)
 - Allowed origins for CORS (Cross-Origin Resource Sharing) protection (if running a web service backend with a frontend)
 - The run command that starts up your service
+
+# Various useful commands
+
+## Identity management
+
+### Creating dummy users
+
+```shell
+az ad user create --display-name 'DevCenter Admin' --password password --user-principal-name DevCenterAdmin@contoso.com
+```
+
+### Misc identity commands
+
+Create a service principal with:
+```shell
+az ad sp create-for-rbac --name devcenter
+```
+
+Get the current user's Principal ID:
+```shell
+az ad signed-in-user show --query id -o tsv
+```
+
+Get a users's Principal ID:
+
+```shell
+az ad user list --upn DevCenterAdmin@contoso.com --query '[].id' -o tsv
+```
+
+# Credits
+
+This template has been built by learning from and leveraging:
+ - [Azure-Samples/azd-deployment-environments](https://github.com/Azure-Samples/azd-deployment-environments)
+ - [ljtill/bicep-dev-box](https://github.com/ljtill/bicep-dev-box)
+ - [PieterbasNagengast/Azure-DevBox](https://github.com/PieterbasNagengast/Azure-DevBox)

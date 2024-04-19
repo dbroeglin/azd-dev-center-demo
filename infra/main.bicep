@@ -13,11 +13,20 @@ param environmentName string
 @description('Primary location for all resources')
 param location string
 
-// Optional parameters to override the default azd resource naming conventions.
-// Add the following to main.parameters.json to provide values:
-// "resourceGroupName": {
-//      "value": "myGroupName"
-// }
+@secure()
+@description('GitHub PAT used to access the catalog (optional if public)')
+param catalogToken string = ''
+
+@description('Principal Id of the user or service principal that will have access to the Dev Center.')
+param principalId string
+
+//
+// optional parameters
+//
+@description('Name of the Dev Center. If not provided, a name will be generated from dev-center.yaml.')
+param devCenterName string = ''
+
+@description('Resource group name to use. If not provided, a name will be generated.')
 param resourceGroupName string = ''
 
 var abbrs = loadJsonContent('./abbreviations.json')
@@ -33,14 +42,6 @@ var tags = {
 #disable-next-line no-unused-vars
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 
-// Name of the service defined in azure.yaml
-// A tag named azd-service-name with this value should be applied to the service host resource, such as:
-//   Microsoft.Web/sites for appservice, function
-// Example usage:
-//   tags: union(tags, { 'azd-service-name': apiServiceName })
-#disable-next-line no-unused-vars
-var apiServiceName = 'python-api'
-
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
@@ -48,11 +49,52 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
+module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
+  name: 'virtualNetwork'
+  scope: rg
+  params: {
+    name: '${abbrs.networkVirtualNetworks}${resourceToken}'
+    location: location
+    tags: tags
+    addressPrefixes: [
+      '10.0.0.0/16'
+    ]
+    subnets: [
+      {
+        name: 'default'
+        addressPrefix: '10.0.1.0/24'
+      }
+    ]
+  }
+} 
+
+module workspace 'br/public:avm/res/operational-insights/workspace:0.3.4' = {
+  name: 'workspace'
+  scope: rg
+  params: {
+    // Required parameters
+    name: '${abbrs.operationalInsightsWorkspaces}-${devCenterConfig.organizationName}-${resourceToken}'	
+    // Non-required parameters
+    location: location
+  }
+}
+
 // Add resources to be provisioned below.
-// A full example that leverages azd bicep modules can be seen in the todo-python-mongo template:
-// https://github.com/Azure-Samples/todo-python-mongo/tree/main/infra
-
-
+var devCenterConfig = loadYamlContent('./dev-center.yaml')
+module devcenter 'core/dev-center/dev-center.bicep' = {
+  name: 'devCenter'
+  scope: rg
+  params: {
+    name: !empty(devCenterName) ? devCenterName : 'dc-${devCenterConfig.organizationName}-${resourceToken}'
+    location: location
+    tags: tags
+    config: devCenterConfig
+    catalogToken: catalogToken
+    //keyVaultName: !empty(catalogToken) ? keyVault.outputs.name : ''
+    logWorkspaceName: workspace.outputs.name
+    principalId: principalId
+  }
+}
 
 // Add outputs from the deployment here, if needed.
 //

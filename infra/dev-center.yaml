@@ -1,0 +1,94 @@
+organizationName: Domtosos
+definitions:
+  - name: 'standard'
+    image: 'win-11-ent-22h2-os'
+    sku: '8-vcpu-32gb-ram-256-ssd'
+  - name: 'visualstudio-2022'
+    image: 'vs-22-ent-win-11-m365'
+    sku: '8-vcpu-32gb-ram-256-ssd'
+environmentTypes:
+  - name: Development
+    tags:
+      env: development
+  - name: Test
+    tags:
+      env: test
+  - name: Production
+    tags:
+      env: production
+catalogs:
+  - name: quickstart-environment-definitions-bicep
+    type: github
+    uri: 'https://github.com/microsoft/devcenter-catalog.git'
+    path: '/Environment-Definitions/BicepTemplates'
+    branch: 'main'
+  - name: quickstart-environment-definitions-arm
+    type: github
+    uri: 'https://github.com/microsoft/devcenter-catalog.git'
+    path: '/Environment-Definitions/ARMTemplates'
+    branch: 'main'
+  - name: quickstart-devbox-tasks
+    type: github
+    uri: 'https://github.com/microsoft/devcenter-catalog.git'
+    path: '/Tasks'
+    branch: 'main'
+  - name: sodano-devbox-tasks
+    type: github
+    uri: 'https://github.com/francesco-sodano/devcenter-catalog.git'
+    path: '/Tasks'
+    branch: 'main'
+projects:
+  - name: PROJECT1
+    members: []
+    pools:
+      - name: 'standard-pool'
+        definition: 'standard'
+      - name: 'standard-test-pool'
+        definition: 'standard'
+    environmentTypes:
+      - name: Development
+        deploymentTargetId: ""
+        roles: ["Owner"]
+        members: []
+        tags:
+          project: PROJECT1
+      - name: Test
+        deploymentTargetId: ""
+        roles: ["Contributor"]
+        members: []
+        tags:
+          project: PROJECT1
+      - name: Production
+        deploymentTargetId: ""
+        roles: ["Reader"]
+        members: []
+        tags:
+          project: PROJECT1
+  - name: PROJECT2
+    members: []
+    pools:
+      - name: 'standard-pool'
+        definition: 'standard'
+        size: 10    
+      - name: 'standard-private-pool'
+        definition: 'standard'
+        size: 10    
+    environmentTypes:
+      - name: Dev
+        deploymentTargetId: ""
+        roles: ["Owner"]
+        members: []
+        tags:
+          project: PROJECT2
+      - name: Test
+        deploymentTargetId: ""
+        roles: ["Contributor"]
+        members: []
+        tags:
+          project: PROJECT2
+      - name: Prod
+        deploymentTargetId: ""
+        roles: ["Reader"]
+        members: []
+        tags:
+          project: PROJECT2

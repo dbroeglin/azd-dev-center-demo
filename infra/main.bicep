@@ -23,9 +23,6 @@ param principalId string
 //
 // optional parameters
 //
-@description('Name of the Dev Center. If not provided, a name will be generated from dev-center.yaml.')
-param devCenterName string = ''
-
 @description('Resource group name to use. If not provided, a name will be generated.')
 param resourceGroupName string = ''
 
@@ -68,30 +65,46 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
   }
 } 
 
-module workspace 'br/public:avm/res/operational-insights/workspace:0.3.4' = {
-  name: 'workspace'
+module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.3.4' = {
+  name: 'logAnalyticsWorkspace'
   scope: rg
   params: {
     // Required parameters
-    name: '${abbrs.operationalInsightsWorkspaces}-${devCenterConfig.organizationName}-${resourceToken}'	
+    name: '${abbrs.operationalInsightsWorkspaces}${devCenterConfig.organizationName}-${resourceToken}'	
     // Non-required parameters
     location: location
   }
 }
 
+module keyVault 'br/public:avm/res/key-vault/vault:0.5.1' = {
+  name: 'keyVault'
+  scope: rg
+  params: {
+    name: '${abbrs.keyVaultVaults}${devCenterConfig.organizationName}-${resourceToken}'
+    enablePurgeProtection: true
+    location: location
+    enableRbacAuthorization: true
+    secrets: {
+      catalogToken: {
+        value: catalogToken
+      }
+    }
+  }
+}
+
 // Add resources to be provisioned below.
 var devCenterConfig = loadYamlContent('./dev-center.yaml')
-module devcenter 'core/dev-center/dev-center.bicep' = {
+module devCenter 'core/dev-center/dev-center.bicep' = {
   name: 'devCenter'
   scope: rg
   params: {
-    name: !empty(devCenterName) ? devCenterName : 'dc-${devCenterConfig.organizationName}-${resourceToken}'
+    name: 'dc-${devCenterConfig.organizationName}-${resourceToken}'
     location: location
     tags: tags
     config: devCenterConfig
     catalogToken: catalogToken
-    //keyVaultName: !empty(catalogToken) ? keyVault.outputs.name : ''
-    logWorkspaceName: workspace.outputs.name
+    keyVaultName: !empty(catalogToken) ? keyVault.outputs.name : ''
+    logWorkspaceName: logAnalyticsWorkspace.outputs.name
     principalId: principalId
   }
 }
@@ -106,3 +119,4 @@ module devcenter 'core/dev-center/dev-center.bicep' = {
 // To see these outputs, run `azd env get-values`,  or `azd env get-values --output json` for json output.
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
+output AZURE_DEV_CENTER_NAME string = devcenter.outputs.name

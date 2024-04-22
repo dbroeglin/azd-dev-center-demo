@@ -1,4 +1,4 @@
-organizationName: Domtosos
+organizationName: Domtoso
 definitions:
   - name: 'standard'
     image: 'win-11-ent-22h2-os'
@@ -35,6 +35,11 @@ catalogs:
   - name: sodano-devbox-tasks
     type: github
     uri: 'https://github.com/francesco-sodano/devcenter-catalog.git'
+    path: '/Tasks'
+    branch: 'main'
+  - name: test
+    type: github
+    uri: 'https://github.com/Evilazaro/MicrosoftDevBox.git'
     path: '/Tasks'
     branch: 'main'
 projects:

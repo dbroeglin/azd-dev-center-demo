@@ -8,9 +8,6 @@
       "location": {
         "value": "${AZURE_LOCATION}"
       },
-      "devCenterName": {
-        "value": "${AZURE_DEV_CENTER_NAME}"
-      },
       "catalogToken": {
         "value": "${GITHUB_TOKEN}"
       }

@@ -12,14 +12,9 @@ param tags object = {}
 
 @description('The principal id to add as a admin of the dev center')
 param principalId string = ''
-/*
+
 @description('The name of the key vault to store secrets in')
 param keyVaultName string = ''
-*/
-
-@secure()
-@description('The personal access token to use to access the catalog')
-param catalogToken string = ''
 
 /*
 @secure()
@@ -28,7 +23,6 @@ param catalogSecretIdentifier string = ''
 
 @description('The name of the log analytics workspace to send logs to')
 param logWorkspaceName string = ''
-
 
 type devCenterConfig = {
   organizationName: string
@@ -103,13 +97,14 @@ resource devCenterCatalog 'Microsoft.DevCenter/devcenters/catalogs@2023-04-01' =
   for catalog in config.catalogs: {
     name: catalog.name
     parent: devCenter
-    properties:  {
-          gitHub: {
-            branch: catalog.branch ?? 'main'
-            uri: catalog.uri
-            path: catalog.path ?? '/'
-          }
-        }
+    properties: {
+      gitHub: {
+        branch: catalog.branch ?? 'main'
+        uri: catalog.uri
+        path: catalog.path ?? '/'
+        secretIdentifier: catalogTokenSecret.properties.secretUri
+      }
+    }
   }
 ]
 
@@ -201,15 +196,14 @@ var images = {
   'vs-22-ent-win-11-m365': 'microsoftvisualstudio_visualstudioplustools_vs-2022-ent-general-win11-m365-gen2'
 }
 
-/*
-module devCenterKeyVaultAccess '../security/keyvault-access.bicep' = if (!empty(keyVaultName)) {
-  name: '${deployment().name}-keyvault-access'
-  params: {
-    keyVaultName: keyVaultName
-    principalId: devcenter.identity.principalId
-  }
+resource keyVault 'Microsoft.KeyVault/vaults@2023-07-01' existing = {
+  name: keyVaultName
 }
-*/
+
+resource catalogTokenSecret 'Microsoft.KeyVault/vaults/secrets@2021-06-01-preview' existing = {
+  name: 'catalogToken'
+  parent: keyVault
+}
 
 module diagnostics 'dev-center-diagnostics.bicep' = if (!empty(logWorkspaceName)) {
   name: '${deployment().name}-diagnostics'
@@ -218,3 +212,14 @@ module diagnostics 'dev-center-diagnostics.bicep' = if (!empty(logWorkspaceName)
     logWorkspaceName: logWorkspaceName
   }
 }
+
+resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(principalId)) {
+  name: '${devCenter.name}-admin-role-assignment'
+  scope: keyVault
+  properties: {
+    principalId: devCenter.identity.principalId 
+    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6'
+  }
+}
+
+output name string = devCenter.name

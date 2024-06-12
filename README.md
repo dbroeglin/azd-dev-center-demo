@@ -42,6 +42,7 @@ az ad user list --upn DevCenterAdmin@contoso.com --query '[].id' -o tsv
 
 This template has been built by learning from and leveraging:
  - [Azure-Samples/azd-deployment-environments](https://github.com/Azure-Samples/azd-deployment-environments)
+ - [Azure-Samples/Devcenter](https://github.com/Azure-Samples/Devcenter)
  - [ljtill/bicep-dev-box](https://github.com/ljtill/bicep-dev-box)
  - [PieterbasNagengast/Azure-DevBox](https://github.com/PieterbasNagengast/Azure-DevBox)
  - [Evilazaro/MicrosoftDevBox](https://github.com/Evilazaro/MicrosoftDevBox)

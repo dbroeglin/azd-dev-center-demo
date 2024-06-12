@@ -93,6 +93,14 @@ resource devCenter 'Microsoft.DevCenter/devcenters@2023-04-01' = {
   }
 }
 
+resource devCenterRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: '${devCenter.name}-admin-assignment'
+  properties: {
+    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635')
+    principalId: devCenter.identity.principalId
+  }
+}
+
 resource devCenterCatalog 'Microsoft.DevCenter/devcenters/catalogs@2023-04-01' = [
   for catalog in config.catalogs: {
     name: catalog.name

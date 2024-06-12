@@ -102,8 +102,7 @@ module devCenter 'core/dev-center/dev-center.bicep' = {
     location: location
     tags: tags
     config: devCenterConfig
-    catalogToken: catalogToken
-    keyVaultName: !empty(catalogToken) ? keyVault.outputs.name : ''
+    keyVaultName: keyVault.outputs.name
     logWorkspaceName: logAnalyticsWorkspace.outputs.name
     principalId: principalId
   }
@@ -119,4 +118,4 @@ module devCenter 'core/dev-center/dev-center.bicep' = {
 // To see these outputs, run `azd env get-values`,  or `azd env get-values --output json` for json output.
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
-output AZURE_DEV_CENTER_NAME string = devcenter.outputs.name
+output AZURE_DEV_CENTER_NAME string = devCenter.outputs.name

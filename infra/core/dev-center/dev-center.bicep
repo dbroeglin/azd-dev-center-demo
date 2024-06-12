@@ -222,7 +222,7 @@ module diagnostics 'dev-center-diagnostics.bicep' = if (!empty(logWorkspaceName)
 }
 
 resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(principalId)) {
-  name: '${devCenter.name}-admin-role-assignment'
+  name: guid('${devCenter.name}-${principalId}-vault')
   scope: keyVault
   properties: {
     principalId: devCenter.identity.principalId 

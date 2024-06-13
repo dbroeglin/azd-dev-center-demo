@@ -93,10 +93,11 @@ var roleResourceIDs = {
   'DevCenter Project Admin': subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '331c37c6-af14-46d9-b9f4-e1909e1b95a0')
 }
 
-resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = [for member in members: {
-  name: guid(project.id, roleResourceIDs[member.role], member.user)
-  scope: project
-  properties: {
+module keyVaultRoleAssignment 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.0' =  [for member in members: {
+  name:  guid(project.id, roleResourceIDs[member.role], member.user)
+  scope: resourceGroup()
+  params: {
+    resourceId: project.id
     principalId: member.user
     roleDefinitionId: roleResourceIDs[member.role]
   }

@@ -20,6 +20,9 @@ param catalogToken string = ''
 @description('Principal Id of the user or service principal that will have access to the Dev Center.')
 param principalId string
 
+@description('Optional name of the organization to create (overides devcenter.yaml organizationName)')
+param organizationName string = ''
+
 //
 // optional parameters
 //
@@ -34,13 +37,17 @@ var tags = {
   'azd-env-name': environmentName
 }
 
+// load YAML config, allow for organizationName to be overridden by parameter
+var devCenterConfig  = loadYamlContent('./dev-center.yaml')
+var _organizationName = empty(organizationName) ? devCenterConfig.organizationName : organizationName
+
 // Generate a unique token to be used in naming resources.
 // Remove linter suppression after using.
 #disable-next-line no-unused-vars
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 
 // Organize resources in a resource group
-resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
+resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
   location: location
   tags: tags
@@ -48,7 +55,7 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
 
 module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
   name: 'virtualNetwork'
-  scope: rg
+  scope: resourceGroup
   params: {
     name: '${abbrs.networkVirtualNetworks}${resourceToken}'
     location: location
@@ -67,38 +74,47 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
 
 module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0.3.4' = {
   name: 'logAnalyticsWorkspace'
-  scope: rg
+  scope: resourceGroup
   params: {
     // Required parameters
-    name: '${abbrs.operationalInsightsWorkspaces}${devCenterConfig.organizationName}-${resourceToken}'	
+    name: '${abbrs.operationalInsightsWorkspaces}${_organizationName}-${resourceToken}'	
     // Non-required parameters
     location: location
   }
 }
 
-module keyVault 'br/public:avm/res/key-vault/vault:0.5.1' = {
+module keyVault 'br/public:avm/res/key-vault/vault:0.6.1' = {
   name: 'keyVault'
-  scope: rg
+  scope: resourceGroup
   params: {
-    name: '${abbrs.keyVaultVaults}${devCenterConfig.organizationName}-${resourceToken}'
+    name: '${abbrs.keyVaultVaults}${_organizationName}-${resourceToken}'
     enablePurgeProtection: true
     location: location
     enableRbacAuthorization: true
-    secrets: {
-      catalogToken: {
+    secrets: [
+      {
+        name: 'catalogToken'
         value: catalogToken
       }
-    }
+    ]
   }
 }
 
-// Add resources to be provisioned below.
-var devCenterConfig = loadYamlContent('./dev-center.yaml')
+module keyVaultRoleAssignment 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.0' = {
+  name:  guid(subscription().id, keyVault.name, principalId)
+  scope: resourceGroup
+  params: {
+    resourceId: keyVault.outputs.resourceId
+    principalId: principalId
+    roleDefinitionId: '00482a5a-887f-4fb3-b363-3b7fe8e74483' // Key Vault Administrator
+  }
+}
+
 module devCenter 'core/dev-center/dev-center.bicep' = {
   name: 'devCenter'
-  scope: rg
+  scope: resourceGroup
   params: {
-    name: 'dc-${devCenterConfig.organizationName}-${resourceToken}'
+    name: 'dc-${_organizationName}-${resourceToken}'
     location: location
     tags: tags
     config: devCenterConfig

@@ -10,7 +10,7 @@ param config devCenterConfig
 @description('The tags to apply to the dev center')
 param tags object = {}
 
-@description('The principal id to add as a admin of the dev center')
+@description('The principal id to add as an admin of the dev center')
 param principalId string = ''
 
 @description('The name of the key vault to store secrets in')
@@ -93,11 +93,13 @@ resource devCenter 'Microsoft.DevCenter/devcenters@2023-04-01' = {
   }
 }
 
-resource devCenterRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: '${devCenter.name}-admin-assignment'
-  properties: {
-    roleDefinitionId: resourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635')
-    principalId: devCenter.identity.principalId
+module devCenterRoleAssignment 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.0' = {
+  name:  guid(subscription().id, devCenter.name)
+  scope: resourceGroup()
+  params: {
+    resourceId: devCenter.id
+    principalId: principalId
+    roleDefinitionId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635' // Owner
   }
 }
 
@@ -221,13 +223,15 @@ module diagnostics 'dev-center-diagnostics.bicep' = if (!empty(logWorkspaceName)
   }
 }
 
-resource roleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = if (!empty(principalId)) {
-  name: guid('${devCenter.name}-${principalId}-vault')
-  scope: keyVault
-  properties: {
-    principalId: devCenter.identity.principalId 
-    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6'
+module keyVaultRoleAssignment 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.0' = {
+  name:  guid(subscription().id, devCenter.id, principalId)
+  scope: resourceGroup()
+  params: {
+    resourceId: keyVault.id
+    principalId: devCenter.identity.principalId
+    roleDefinitionId: '4633458b-17de-408a-b874-0445c86b69e6' // Key Vault User
   }
 }
+
 
 output name string = devCenter.name

@@ -9,7 +9,13 @@
         "value": "${AZURE_LOCATION}"
       },
       "catalogToken": {
-        "value": "${GITHUB_TOKEN}"
+        "value": "${CATALOG_TOKEN}"
+      },
+      "principalId": {
+        "value": "${AZURE_PRINCIPAL_ID}"
+      },
+      "organizationName": {
+        "value": "${ORGANIZATION_NAME}"
       }
     }
 }

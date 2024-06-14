@@ -93,16 +93,6 @@ resource devCenter 'Microsoft.DevCenter/devcenters@2023-04-01' = {
   }
 }
 
-module devCenterRoleAssignment 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.0' = {
-  name:  guid(subscription().id, devCenter.name)
-  scope: resourceGroup()
-  params: {
-    resourceId: devCenter.id
-    principalId: principalId
-    roleDefinitionId: '8e3af657-a8ff-443c-a75c-2fe8c4bcb635' // Owner
-  }
-}
-
 resource devCenterCatalog 'Microsoft.DevCenter/devcenters/catalogs@2023-04-01' = [
   for catalog in config.catalogs: {
     name: catalog.name
@@ -225,7 +215,6 @@ module diagnostics 'dev-center-diagnostics.bicep' = if (!empty(logWorkspaceName)
 
 module keyVaultRoleAssignment 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.0' = {
   name:  guid(subscription().id, devCenter.id, principalId)
-  scope: resourceGroup()
   params: {
     resourceId: keyVault.id
     principalId: devCenter.identity.principalId
@@ -235,3 +224,5 @@ module keyVaultRoleAssignment 'br/public:avm/ptn/authorization/resource-role-ass
 
 
 output name string = devCenter.name
+output resourceId string = devCenter.id
+output principalId string = devCenter.identity.principalId

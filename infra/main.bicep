@@ -29,7 +29,7 @@ param organizationName string = ''
 @description('Resource group name to use. If not provided, a name will be generated.')
 param resourceGroupName string = ''
 
-var abbrs = loadJsonContent('./abbreviations.json')
+var abbreviations = loadJsonContent('./abbreviations.json')
 
 // tags that should be applied to all resources.
 var tags = {
@@ -37,18 +37,25 @@ var tags = {
   'azd-env-name': environmentName
 }
 
-// load YAML config, allow for organizationName to be overridden by parameter
-var devCenterConfig  = loadYamlContent('./dev-center.yaml')
-var _organizationName = empty(organizationName) ? devCenterConfig.organizationName : organizationName
 
 // Generate a unique token to be used in naming resources.
 // Remove linter suppression after using.
 #disable-next-line no-unused-vars
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 
+@description('Name of the environment with only alphanumeric characters. Used for resource names that require alphanumeric characters only.')
+var alphaNumericEnvironmentName = replace(replace(environmentName, '-', ''), ' ', '')
+
+// load YAML config, allow for organizationName to be overridden by parameter
+var devCenterConfig  = loadYamlContent('./dev-center.yaml')
+
+var _organizationName = empty(organizationName) ? devCenterConfig.organizationName : organizationName
+var _keyVaultName = take('${abbreviations.keyVaultVaults}${take(alphaNumericEnvironmentName, 8)}${resourceToken}', 24)
+var _devCenterName = 'dc-${toLower(_organizationName)}'
+
 // Organize resources in a resource group
 resource resourceGroup 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: !empty(resourceGroupName) ? resourceGroupName : '${abbrs.resourcesResourceGroups}${environmentName}'
+  name: !empty(resourceGroupName) ? resourceGroupName : '${abbreviations.resourcesResourceGroups}${environmentName}'
   location: location
   tags: tags
 }
@@ -57,7 +64,7 @@ module virtualNetwork 'br/public:avm/res/network/virtual-network:0.1.5' = {
   name: 'virtualNetwork'
   scope: resourceGroup
   params: {
-    name: '${abbrs.networkVirtualNetworks}${resourceToken}'
+    name: '${abbreviations.networkVirtualNetworks}${resourceToken}'
     location: location
     tags: tags
     addressPrefixes: [
@@ -76,9 +83,7 @@ module logAnalyticsWorkspace 'br/public:avm/res/operational-insights/workspace:0
   name: 'logAnalyticsWorkspace'
   scope: resourceGroup
   params: {
-    // Required parameters
-    name: '${abbrs.operationalInsightsWorkspaces}${_organizationName}-${resourceToken}'	
-    // Non-required parameters
+    name: '${abbreviations.operationalInsightsWorkspaces}${_organizationName}-${resourceToken}'	
     location: location
   }
 }
@@ -87,7 +92,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.6.1' = {
   name: 'keyVault'
   scope: resourceGroup
   params: {
-    name: '${abbrs.keyVaultVaults}${_organizationName}-${resourceToken}'
+    name: _keyVaultName
     enablePurgeProtection: true
     location: location
     enableRbacAuthorization: true
@@ -100,6 +105,7 @@ module keyVault 'br/public:avm/res/key-vault/vault:0.6.1' = {
   }
 }
 
+/** Assign Key Vault Administrator role to the user who is deploying */
 module keyVaultRoleAssignment 'br/public:avm/ptn/authorization/resource-role-assignment:0.1.0' = {
   name:  guid(subscription().id, keyVault.name, principalId)
   scope: resourceGroup
@@ -114,13 +120,22 @@ module devCenter 'core/dev-center/dev-center.bicep' = {
   name: 'devCenter'
   scope: resourceGroup
   params: {
-    name: 'dc-${_organizationName}-${resourceToken}'
+    name: _devCenterName
     location: location
     tags: tags
     config: devCenterConfig
     keyVaultName: keyVault.outputs.name
     logWorkspaceName: logAnalyticsWorkspace.outputs.name
     principalId: principalId
+  }
+}
+
+resource devCenterRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(subscription().id, devCenter.name, 'managed-identity') 
+  scope: subscription()
+  properties: {
+    roleDefinitionId: subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '8e3af657-a8ff-443c-a75c-2fe8c4bcb635') // Owner
+    principalId: devCenter.outputs.principalId
   }
 }
 
